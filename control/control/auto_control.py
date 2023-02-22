@@ -65,9 +65,9 @@ class Auto_control(Node):
         self.speed_curve = 80.0                         # expected speed for station approaching
         self.station_dis = 1.0
 
-        self.next_limit = 0.0                           # next speed limit
+        self.next_limit = 10.0                           # next speed limit
         self.temp_limit_dis = 1.0                       # calculate distance to predict limit change
-        self.train_lenght = 0.0910985         # train length 5 sharyo bilevel and one f40ph in miles
+        self.train_lenght = 0.0510985         # train length 5 sharyo bilevel and one f40ph in miles
         self.signs = []                                 # detected signs
         self.command = 'N'
         self.corss_state = Crossing_State.NAN  
@@ -100,13 +100,13 @@ class Auto_control(Node):
         self.vel_group = np.roll(self.vel_group,-1)
         self.vel_group[-1] = self.vel_now
         self.acc = (np.sum(self.vel_group-self.vel_group_last))*360*5 # miles pre sec^2
-        self.vel_check = self.vel_now+self.acc/3600*10
+        self.vel_check = self.vel_now+self.acc/3600*6
         self.dis = self.dis + self.vel_now/36000
-        self.get_logger().info(f'dis {self.dis:.2f} speed {self.vel_now:.2f} acc {self.acc:.2f} nextspeed10s {self.vel_check:.2f}')
+        # self.get_logger().info(f'dis {self.dis:.2f} speed {self.vel_now:.2f} acc {self.acc:.2f} nextspeed6s {self.vel_check:.2f}')
 
         self.state_update()
 
-        if self.vel_now <= self.speed_limit-3 and self.vel_now <= self.speed_curve-3:
+        if self.vel_now <= self.speed_limit-2 and self.vel_now <= self.speed_curve-3 and self.vel_check <= self.speed_limit-3:
             self.train_state = Train_State.ACC
             self.get_logger().info(f'D {self.vel_now:.2f}')
         elif self.vel_now <= self.speed_limit and self.vel_now <= self.speed_curve:
@@ -121,10 +121,11 @@ class Auto_control(Node):
         self.control_update()
 
     def state_update(self):
-        if self.limit_state == Limit_State.ACC and self.temp_limit_dis <= self.train_lenght:
+        if self.limit_state == Limit_State.ACC:
             self.temp_limit_dis += self.vel_now/36000
+            self.get_logger().info(f'limit passed {self.temp_limit_dis:.6f}, passed limit: {self.next_limit:.2f}')
             if self.temp_limit_dis>=self.train_lenght:
-                self.limit_state == Limit_State.NAN
+                self.limit_state = Limit_State.NAN
                 self.speed_limit = self.next_limit
         if self.station_state == Station_State.APP:
             self.station_dis -= self.vel_now/36000
@@ -161,19 +162,20 @@ class Auto_control(Node):
     def resume_callback(self,request, response):
         self.station_state = Station_State.NAN
         self.speed_curve = 80
+        self.station_dis = 1.0
         return Empty.Response()
 
 
     def sign_callback(self, msg):
         self.signs = msg.data
         for i in range(len(self.signs)):
-            if self.signs[i] == 0 and self.signs[i] == 1:
+            if self.signs[i] == 0 or self.signs[i] == 1:
                 self.next_limit = 79
-            elif self.signs[i] == 2 and self.signs[i] == 3:
+            elif self.signs[i] == 2 or self.signs[i] == 3:
                 self.next_limit = 40
             elif self.signs[i] == 4:
                 self.next_limit = 75
-            elif self.signs[i] == 5 and self.signs[i] == 12:
+            elif self.signs[i] == 5 or self.signs[i] == 12:
                 self.next_limit = 25
             elif self.signs[i] == 6:
                 self.next_limit = 20
@@ -183,16 +185,20 @@ class Auto_control(Node):
                 self.corss_state = Crossing_State.APP
             elif self.signs[i] == 9:
                 self.station_state = Station_State.APP
+                self.station_dis = 1.0
             # elif self.signs[i] == 10:
             # elif self.signs[i] == 11:
             elif self.signs[i] == 13:
                 self.next_limit = 70
 
-        if self.next_limit < self.speed_limit:
+        if self.next_limit < self.speed_limit-1:
             self.speed_limit = self.next_limit
+            self.limit_state = Limit_State.NAN
         elif self.next_limit > self.speed_limit and self.limit_state == Limit_State.NAN:
             self.limit_state = Limit_State.ACC
-            self.temp_limit_dis = -0.001
+            self.temp_limit_dis = -0.0
+
+        self.get_logger().info(f'next limit {self.next_limit:.2f}, limit: {self.speed_limit:.2f}')
 
 
 

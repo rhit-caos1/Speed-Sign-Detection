@@ -276,6 +276,7 @@ def main():
         msg.data = detect.detection()
         speed_pub.publisher_.publish(msg)
         # speed_pub.get_logger().info(f'detect speed {msg.data}')
+    speed_pub.pipeline.stop()
     detect_pub.destroy_node()
     rclpy.shutdown()
 

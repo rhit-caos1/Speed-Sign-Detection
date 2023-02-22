@@ -92,11 +92,14 @@ class detect_sign:
         # Run inference
         if self.device.type != 'cpu':
             self.model(torch.zeros(1, 3, imgsz, imgsz).to(device).type_as(next(self.model.parameters())))  # run once
-        old_img_w = old_img_h = imgsz
-        old_img_b = 1
+        self.old_img_w = imgsz
+        self.old_img_h = imgsz
+        self.old_img_b = 1
 
         t0 = time.perf_counter()
         self.obj = iter(self.dataset)
+
+        # print(self.device.type)
 
     def detection(self):
         detections = []
@@ -107,11 +110,13 @@ class detect_sign:
         if img.ndimension() == 3:
             img = img.unsqueeze(0)
 
+        # print(self.device.type)
+
         # Warmup
-        if self.device.type != 'cpu' and (old_img_b != img.shape[0] or old_img_h != img.shape[2] or old_img_w != img.shape[3]):
-            old_img_b = img.shape[0]
-            old_img_h = img.shape[2]
-            old_img_w = img.shape[3]
+        if self.device.type != 'cpu' and (self.old_img_b != img.shape[0] or self.old_img_h != img.shape[2] or self.old_img_w != img.shape[3]):
+            self.old_img_b = img.shape[0]
+            self.old_img_h = img.shape[2]
+            self.old_img_w = img.shape[3]
             for i in range(3):
                 self.model(img)[0]
 
@@ -183,7 +188,7 @@ def main(args=None):
     # mypub = mynode.create_publisher(Int16MultiArray, 'signs', 10)
     msg = Int16MultiArray()
     with torch.no_grad():
-        detect_s = detect_sign("0","best.pt",device,img_size=1920,iou_thres=0.45,conf_thres=0.5)
+        detect_s = detect_sign("0","best.pt",device,img_size=1920,iou_thres=0.45,conf_thres=0.85)
 
         detect_pub = Detect_ros()
         # rclpy.spin(detect_pub)
