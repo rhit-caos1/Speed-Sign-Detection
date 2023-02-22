@@ -1,0 +1,6 @@
+<launch>
+  <node pkg="speed_detect" exec="speed" name="speed"/>
+  <node pkg="detection" exec="detect_ros" name="detect_ros"/>
+  <node pkg="control" exec="auto_control" name="control">
+  </node>
+</launch>

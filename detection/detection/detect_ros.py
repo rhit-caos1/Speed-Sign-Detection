@@ -158,7 +158,7 @@ class detect_sign:
             
             cv2.imshow(str(p), im0)
             cv2.waitKey(1)  # 1 millisecond
-            print('goof')
+            # print('goof')
         print(detections)
         return detections
 
@@ -166,24 +166,12 @@ class detect_sign:
 
 ### ROS Node
 
-class detect_ros(Node):
-    def __init__(self, detector1):
+class Detect_ros(Node):
+    def __init__(self):
         super().__init__('detect_ros')
-        self.detector = detector1
         self.publisher_ = self.create_publisher(Int16MultiArray, 'signs', 10)
-        msg = Int16MultiArray()
-        while True:
-            msg.data = detector1.detection()
-            print('doof')
-            self.publisher_.publish(msg)
-            print('toof')
 
-# def main(args=None):
-#     """ The main() function. """
-#     rclpy.init(args=args)
-#     mywaypoint = waypoint()
-#     rclpy.spin(mywaypoint)
-#     rclpy.shutdown()
+
 def main(args=None):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(device)
@@ -191,16 +179,18 @@ def main(args=None):
     # ckpt = torch.load("best.pt", map_location=None)
     rclpy.init(args=None)
 
-
+    # mynode = rclpy.Node()
+    # mypub = mynode.create_publisher(Int16MultiArray, 'signs', 10)
+    msg = Int16MultiArray()
     with torch.no_grad():
         detect_s = detect_sign("0","best.pt",device,img_size=1920,iou_thres=0.45,conf_thres=0.5)
 
-        detect_pub = detect_ros(detect_s)
+        detect_pub = Detect_ros()
+        # rclpy.spin(detect_pub)
+        print('begin')
         while True:
-            rclpy.spin_once(detect_pub)
-            # detect_pub.destroy_node()
-            # rclpy.shutdown()
-            print('oof')
+            msg.data = detect_s.detection()
+            detect_pub.publisher_.publish(msg)
 
         detect_pub.destroy_node()
         rclpy.shutdown()
