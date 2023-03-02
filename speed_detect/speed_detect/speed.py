@@ -259,9 +259,17 @@ class camera_read():
         return self.Vresult
 
 class Speed(Node):
-    def __init__(self):
+    def __init__(self,detection):
         super().__init__('speed')
         self.publisher_ = self.create_publisher(Int16, 'speed', 10)
+        self.timer = self.create_timer(1/10, self.timer_callback)
+        self.detection = detection
+        self.msg = Int16()
+
+    def timer_callback(self):
+        self.msg.data =self.detection.detection()
+        self.publisher_.publish(self.msg)
+
 
 
 def main():
@@ -270,14 +278,21 @@ def main():
     detect = camera_read(upper_corner,lower_corner)
     msg = Int16()
     rclpy.init(args=None)    
-    speed_pub = Speed()
+    speed_pub = Speed(detect)
 
-    while True:
-        msg.data = detect.detection()
-        speed_pub.publisher_.publish(msg)
-        # speed_pub.get_logger().info(f'detect speed {msg.data}')
-    speed_pub.pipeline.stop()
-    detect_pub.destroy_node()
+    # while True:
+    #     msg.data = detect.detection()
+    #     speed_pub.publisher_.publish(msg)
+    #     # speed_pub.get_logger().info(f'detect speed {msg.data}')
+    try:
+        while rclpy.ok():
+            rclpy.spin(speed_pub)
+    except KeyboardInterrupt:
+        detect.pipeline.stop()
+        speed_pub.destroy_node()
+        rclpy.shutdown()
+    detect.pipeline.stop()
+    speed_pub.destroy_node()
     rclpy.shutdown()
 
 if __name__ == '__main__':
