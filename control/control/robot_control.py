@@ -11,8 +11,8 @@ from interbotix_xs_msgs.msg import JointGroupCommand,JointSingleCommand,JointTra
 class Robot_control(Node):
     def __init__(self):
         super().__init__('robot_control')
-        self.robot1_ns = 'arm_1'
-        self.robot2_ns = 'arm_2'
+        self.robot1_ns = 'arm_2'
+        self.robot2_ns = 'arm_1'
 
         gripper_pressure_lower_limit = 150
         gripper_pressure = 0.5
@@ -25,6 +25,24 @@ class Robot_control(Node):
 
         gripper_name = 'gripper'
         self.gripper_command = JointSingleCommand(name=gripper_name)
+
+        self.gripper1_command = JointSingleCommand(name=gripper_name)
+        self.gripper2_command = JointSingleCommand(name=gripper_name)
+
+        self.T1 = [0.0, 0.35, -0.77, 0.1]   #IT
+        self.T2 = [0.0,-0.60, 0.60, 0.0]    #FT
+        self.T3 = [0.0, -0.25, 0.15, 0.0]   #HT
+        self.B1 = [0.04,-0.85, 0.95, 0.0]   #IB1
+        self.B2 = [0.03,-0.09, 0.15, 0.0]   #FB
+        self.B4 = [0.04,-0.95, 0.99, 0.0]   #IB2
+        self.B3 = [0.04,-0.35, 0.4, 0.0]    #HB
+        self.S = [0.0, -1.88, 1.5, 0.8]     #sleep
+
+        self.msg1 = JointGroupCommand()
+        self.msg1.name = 'arm'
+
+        self.msg2 = JointGroupCommand()
+        self.msg2.name = 'arm'
 
 
         # self.timer = self.create_timer(1/10, self.timer_callback)
@@ -40,6 +58,12 @@ class Robot_control(Node):
         self.robot2_single_pub = self.create_publisher(
             JointSingleCommand, f'{self.robot2_ns}/commands/joint_single', 10
         )
+
+        self.FT_srv = self.create_service(Empty, 'FT', self.FT_callback)
+        self.HT_srv = self.create_service(Empty, 'HT', self.HT_callback)
+        self.ID_srv = self.create_service(Empty, 'ID', self.ID_callback)
+        self.HB_srv = self.create_service(Empty, 'HB', self.HB_callback)
+        self.FB_srv = self.create_service(Empty, 'FB', self.FB_callback)
 
         self.robot1_home_srv = self.create_service(Empty, 'home1', self.home1_callback)
         self.robot1_sleep_srv = self.create_service(Empty, 'sleep1', self.sleep1_callback)
@@ -58,10 +82,237 @@ class Robot_control(Node):
 
         self.robot2_grasp_srv = self.create_service(Empty, 'grasp2', self.grasp2_callback)
         self.robot2_release_srv = self.create_service(Empty, 'release2', self.release2_callback)
+
+        self.robot_sleep_srv = self.create_service(Empty, 'sleep', self.sleep_callback)
     # def timer_callback(self):
     #     # if (self.vel_group.size >10):
     #     #     self.vel_group.
 
+        self.cmd_sub = self.create_subscription(
+            Int16,
+            'command',
+            self.cmd_callback,
+            10)
+        
+        self.prev_cmd = 2
+        self.current_cmd = 2
+        
+    def cmd_callback(self, msg):
+        # self.current_cmd = int(msg.data)
+        self.function_test(int(msg.data))
+
+    def function_test(self,msg):
+        self.current_cmd = int(msg)
+        if self.current_cmd == 0:
+            if self.prev_cmd ==2:
+                #TODO: T1/grasp/T2  None
+                self.msg1.cmd = self.T1
+                self.robot1_joints_pub.publish(self.msg1)
+                time.sleep(self.move_time)
+
+                self.grasp_r1()
+                self.msg1.cmd = self.T2
+                self.robot1_joints_pub.publish(self.msg1)
+
+                time.sleep(self.move_time)
+
+
+            elif self.prev_cmd ==1:
+                #TODO: T2   None
+                self.msg1.cmd = self.T2
+                self.robot1_joints_pub.publish(self.msg1)
+                time.sleep(self.move_time)
+            elif self.prev_cmd ==3 or self.prev_cmd == 4:
+                #TODO: T1/grasp/T2  B4/release/s
+                self.msg1.cmd = self.T1
+                self.msg2.cmd = self.B4
+                self.robot1_joints_pub.publish(self.msg1)
+                self.robot2_joints_pub.publish(self.msg2)
+                time.sleep(self.move_time)
+
+                self.gripper1_command.cmd = -self.gripper_value #Close
+                self.gripper2_command.cmd = self.gripper_value  #Open
+                self.robot1_single_pub.publish(self.gripper1_command)
+                self.robot2_single_pub.publish(self.gripper2_command)
+                time.sleep(2.5)
+
+                self.msg1.cmd = self.T2
+                self.msg2.cmd = self.S
+                self.robot1_joints_pub.publish(self.msg1)
+                self.robot2_joints_pub.publish(self.msg2)
+                time.sleep(self.move_time)
+
+
+        elif self.current_cmd == 1:
+            if self.prev_cmd ==2:
+                #TODO: T1/grasp/T3	None
+                self.msg1.cmd = self.T1
+                self.robot1_joints_pub.publish(self.msg1)
+                time.sleep(self.move_time)
+
+                self.grasp_r1()
+                self.msg1.cmd = self.T3
+                self.robot1_joints_pub.publish(self.msg1)
+
+                time.sleep(self.move_time)
+
+            elif self.prev_cmd ==0:
+                #TODO: T3	None
+                self.msg1.cmd = self.T3
+                self.robot1_joints_pub.publish(self.msg1)
+                time.sleep(self.move_time)
+            elif self.prev_cmd ==3 or self.prev_cmd == 4:
+                #TODO: T1/grasp/T3	B4/release/s
+                self.msg1.cmd = self.T1
+                self.msg2.cmd = self.B4
+                self.robot1_joints_pub.publish(self.msg1)
+                self.robot2_joints_pub.publish(self.msg2)
+                time.sleep(self.move_time)
+
+                self.gripper1_command.cmd = -self.gripper_value #Close
+                self.gripper2_command.cmd = self.gripper_value  #Open
+                self.robot1_single_pub.publish(self.gripper1_command)
+                self.robot2_single_pub.publish(self.gripper2_command)
+                time.sleep(2.5)
+
+                self.msg1.cmd = self.T3
+                self.msg2.cmd = self.S
+                self.robot1_joints_pub.publish(self.msg1)
+                self.robot2_joints_pub.publish(self.msg2)
+                time.sleep(self.move_time)
+
+        elif self.current_cmd == 2:
+            if self.prev_cmd ==0 or self.prev_cmd ==1:
+                #TODO: T1/release/s	None
+                self.msg1.cmd = self.T1
+                self.robot1_joints_pub.publish(self.msg1)
+                time.sleep(self.move_time)
+                self.gripper1_command.cmd = self.gripper_value #Open
+                self.robot1_single_pub.publish(self.gripper1_command)
+                time.sleep(2.5)
+                self.msg1.cmd = self.S
+                self.robot1_joints_pub.publish(self.msg1)
+                time.sleep(self.move_time)
+
+
+            elif self.prev_cmd ==3 or self.prev_cmd == 4:
+                #TODO: None	B4/release/s
+                self.msg2.cmd = self.B4
+                self.robot2_joints_pub.publish(self.msg2)
+                time.sleep(self.move_time)
+                self.gripper2_command.cmd = self.gripper_value #Open
+                self.robot2_single_pub.publish(self.gripper2_command)
+                time.sleep(2.5)
+                self.msg2.cmd = self.S
+                self.robot2_joints_pub.publish(self.msg2)
+                time.sleep(self.move_time)
+
+        elif self.current_cmd == 3:
+            if self.prev_cmd ==0 or self.prev_cmd ==1:
+                #TODO: T1/release/s	B1/grasp/B3
+                self.msg1.cmd = self.T1
+                self.msg2.cmd = self.B1
+                self.robot1_joints_pub.publish(self.msg1)
+                self.robot2_joints_pub.publish(self.msg2)
+                time.sleep(self.move_time)
+
+                self.gripper1_command.cmd = self.gripper_value  #Open
+                self.gripper2_command.cmd = -self.gripper_value #Close
+                self.robot1_single_pub.publish(self.gripper1_command)
+                self.robot2_single_pub.publish(self.gripper2_command)
+                time.sleep(2.5)
+
+                self.msg1.cmd = self.S
+                self.msg2.cmd = self.B3
+                self.robot1_joints_pub.publish(self.msg1)
+                self.robot2_joints_pub.publish(self.msg2)
+                time.sleep(self.move_time)
+            elif self.prev_cmd ==2:
+                #TODO: None	B1/grasp/B3
+                self.msg2.cmd = self.B1
+                self.robot2_joints_pub.publish(self.msg2)
+                time.sleep(self.move_time)
+
+                self.grasp_r2()
+                self.msg2.cmd = self.B3
+                self.robot2_joints_pub.publish(self.msg2)
+
+                time.sleep(self.move_time)
+            elif self.prev_cmd == 4:
+                #TODO: None	B3
+                self.msg2.cmd = self.B3
+                self.robot2_joints_pub.publish(self.msg2)
+                time.sleep(self.move_time)
+
+        elif self.current_cmd == 4:
+            if self.prev_cmd ==0 or self.prev_cmd ==1:
+                #TODO: T1/release/s	B1/grasp/B2
+                self.msg1.cmd = self.T1
+                self.msg2.cmd = self.B1
+                self.robot1_joints_pub.publish(self.msg1)
+                self.robot2_joints_pub.publish(self.msg2)
+                time.sleep(self.move_time)
+
+                self.gripper1_command.cmd = self.gripper_value  #Open
+                self.gripper2_command.cmd = -self.gripper_value #Close
+                self.robot1_single_pub.publish(self.gripper1_command)
+                self.robot2_single_pub.publish(self.gripper2_command)
+                time.sleep(2.5)
+
+                self.msg1.cmd = self.S
+                self.msg2.cmd = self.B2
+                self.robot1_joints_pub.publish(self.msg1)
+                self.robot2_joints_pub.publish(self.msg2)
+                time.sleep(self.move_time)
+            elif self.prev_cmd ==2:
+                #TODO: None	B1/grasp/B2
+                self.msg2.cmd = self.B1
+                self.robot2_joints_pub.publish(self.msg2)
+                time.sleep(self.move_time)
+
+                self.grasp_r2()
+                self.msg2.cmd = self.B2
+                self.robot2_joints_pub.publish(self.msg2)
+
+                time.sleep(self.move_time)
+            elif self.prev_cmd == 3:
+                #TODO: None	B2
+                self.msg2.cmd = self.B2
+                self.robot2_joints_pub.publish(self.msg2)
+                time.sleep(self.move_time)
+
+
+        self.prev_cmd = self.current_cmd
+
+    def FT_callback(self,request, response):
+        self.function_test(0)
+        return Empty.Response()
+    
+    def HT_callback(self,request, response):
+        self.function_test(1)
+        return Empty.Response()
+
+    def ID_callback(self,request, response):
+        self.function_test(2)
+        return Empty.Response()
+
+    def HB_callback(self,request, response):
+        self.function_test(3)
+        return Empty.Response()
+
+    def FB_callback(self,request, response):
+        self.function_test(4)
+        return Empty.Response()
+
+    def sleep_callback(self,request, response):
+        self.current_cmd = 2
+        self.prev_cmd = 2
+        msg = JointGroupCommand()
+        msg.name = 'arm'
+        msg.cmd = [0.0, -1.88, 1.5, 0.8]
+        self.robot1_joints_pub.publish(msg)
+        self.robot2_joints_pub.publish(msg)
+        time.sleep(self.move_time)
 
 
     def home1_callback(self,request, response):

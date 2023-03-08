@@ -12,9 +12,11 @@ class Train_State(Enum):
     """Current state of the system."""
 
     """Determines what the main timer function should be doing on each iteration."""
-    ACC = auto(),
-    DEC = auto(),
+    FT = auto(),
+    HT = auto(),
     IDLE = auto(),
+    HB = auto(),
+    FB = auto(),
     MAN = auto(),
 
 class Station_State(Enum):
@@ -55,6 +57,8 @@ class Auto_control(Node):
 
         self.resume_srv = self.create_service(Empty, 'resume', self.resume_callback)
 
+        self.command_pub = self.create_publisher(Int16, 'command', 10)
+
         self.vel_now = 0.0                              # current vel
         self.acc = 0.0                                  # current acc
         self.vel_group = np.zeros(20,dtype=float)       # recording speed info
@@ -74,6 +78,14 @@ class Auto_control(Node):
         self.station_state = Station_State.NAN
         self.limit_state = Limit_State.NAN
         self.train_state = Train_State.IDLE
+
+        self.control_cmd = 2
+
+        self.speed_thres = 2.0
+
+        self.prev_cmd = self.control_cmd
+
+        self.cmd = Int16()
 
         ## GUI Stuff
         pygame.init()
@@ -105,20 +117,60 @@ class Auto_control(Node):
         # self.get_logger().info(f'dis {self.dis:.2f} speed {self.vel_now:.2f} acc {self.acc:.2f} nextspeed6s {self.vel_check:.2f}')
 
         self.state_update()
+        self.threshold_update()
 
-        if self.vel_now <= self.speed_limit-2 and self.vel_now <= self.speed_curve-3 and self.vel_check <= self.speed_limit-3:
-            self.train_state = Train_State.ACC
-            self.get_logger().info(f'D {self.vel_now:.2f}')
-        elif self.vel_now <= self.speed_limit and self.vel_now <= self.speed_curve:
-            self.train_state = Train_State.IDLE
-            self.get_logger().info(f'N {self.vel_now:.2f}')
-        elif self.vel_now > self.speed_limit or self.vel_now > self.speed_curve:
-            self.train_state = Train_State.DEC
-            self.get_logger().info(f'B {self.vel_now:.2f}')
-        elif self.speed_curve == 10.0:
-            self.train_state = Train_State.MAN
-            self.get_logger().info(f'HUMAN speed:{self.vel_now:.2f} station end:{self.station_dis}')
+        if self.speed_limit <= self.speed_curve:
+            limit = self.speed_limit
+        else:
+            limit = self.speed_curve
+
+        if self.vel_now > limit:
+            if self.vel_now<limit+2 and self.station_state == Station_State.NAN:
+                self.train_state = Train_State.HB
+                self.control_cmd = 3
+            else:
+                self.train_state = Train_State.FB
+                self.control_cmd = 4
+        else:
+            if self.vel_now<limit and self.vel_now>limit-self.speed_thres and self.station_state == Station_State.NAN:
+                self.train_state = Train_State.IDLE
+                self.control_cmd = 2
+            elif self.vel_now<limit-self.speed_thresa and self.station_state == Station_State.NAN:
+                if self.vel_now<=10.5 and limit < 15:
+                    self.train_state = Train_State.HT
+                    self.control_cmd = 1
+                else:
+                    self.train_state = Train_State.FT
+                    self.control_cmd = 0
+            else:
+                self.train_state = Train_State.IDLE
+                self.control_cmd = 0
+
+        # if self.vel_now <= self.speed_limit-2 and self.vel_now <= self.speed_curve-3 and self.vel_check <= self.speed_limit-3:
+        #     self.train_state = Train_State.ACC
+        #     self.get_logger().info(f'D {self.vel_now:.2f}')
+        # elif self.vel_now <= self.speed_limit and self.vel_now <= self.speed_curve:
+        #     self.train_state = Train_State.IDLE
+        #     self.get_logger().info(f'N {self.vel_now:.2f}')
+        # elif self.vel_now > self.speed_limit or self.vel_now > self.speed_curve:
+        #     self.train_state = Train_State.DEC
+        #     self.get_logger().info(f'B {self.vel_now:.2f}')
+        # elif self.speed_curve == 10.0:
+        #     self.train_state = Train_State.MAN
+        #     self.get_logger().info(f'HUMAN speed:{self.vel_now:.2f} station end:{self.station_dis}')
+        if self.control_cmd != self.prev_cmd:
+            self.cmd.data = int(self.control_cmd)
+            self.command_pub.publish(self.cmd)
+
+        self.prev_cmd = self.control_cmd
+
         self.control_update()
+
+    def threshold_update(self):
+        if self.speed_limit<=15.0:
+            self.speed_thres = 2.0
+        else:
+            self.speed_thres = 2-(self.vel_now-15.0)/100.0
 
     def state_update(self):
         if self.limit_state == Limit_State.ACC:
@@ -135,12 +187,16 @@ class Auto_control(Node):
                 self.speed_curve = 10.0
 
     def control_update(self):
-        if self.train_state == Train_State.ACC:
-            self.command = 'D'
+        if self.train_state == Train_State.FT:
+            self.command = 'FT'
+        elif self.train_state == Train_State.HT:
+            self.command = 'HT'
         elif self.train_state == Train_State.IDLE:
             self.command = 'N'
-        elif self.train_state == Train_State.DEC:
-            self.command = 'B'
+        elif self.train_state == Train_State.HB:
+            self.command = 'HB'
+        elif self.train_state == Train_State.FB:
+            self.command = 'FB'
         else:
             self.command = 'M'
 
