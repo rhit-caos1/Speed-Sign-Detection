@@ -8,6 +8,7 @@ from enum import Enum, auto
 import pygame
 # import time
 
+# Train control state
 class Train_State(Enum):
     """Current state of the system."""
 
@@ -19,24 +20,27 @@ class Train_State(Enum):
     FB = auto(),
     MAN = auto(),
 
+# Station approaching flag
 class Station_State(Enum):
-    """Current state of the system."""
+    """Station approaching flag."""
 
-    """Determines what the main timer function should be doing on each iteration."""
+    """Indicate station sign detection status."""
     APP = auto(),
     NAN = auto(),
 
+# Speed limit flag
 class Limit_State(Enum):
-    """Current state of the system."""
+    """Speed limit flag."""
 
-    """Determines what the main timer function should be doing on each iteration."""
+    """Indicate a speed limit sign with higher limit is detected."""
     NAN = auto(),
     ACC = auto(),
 
+# Cossing sign flag
 class Crossing_State(Enum):
-    """Current state of the system."""
+    """Cossing sign flag (not implemented with robot action due to lack of working space)."""
 
-    """Determines what the main timer function should be doing on each iteration."""
+    """Indecated the train is approaching a crossing."""
     APP = auto(),
     NAN = auto(),
 
@@ -56,6 +60,7 @@ class Auto_control(Node):
             10)
 
         self.resume_srv = self.create_service(Empty, 'resume', self.resume_callback)
+        self.set75_srv = self.create_service(Empty, 'set_75limit', self.set_75_limit_callback)
 
         self.command_pub = self.create_publisher(Int16, 'command', 10)
 
@@ -67,7 +72,7 @@ class Auto_control(Node):
         self.dis = 0.0                                  # distance recorder
         self.speed_limit = 10                           # current speed limit
         self.speed_curve = 80.0                         # expected speed for station approaching
-        self.station_dis = 1.0
+        self.station_dis = 1.05
 
         self.next_limit = 10.0                           # next speed limit
         self.temp_limit_dis = 1.0                       # calculate distance to predict limit change
@@ -103,6 +108,8 @@ class Auto_control(Node):
 
 
     def speed_callback(self, msg):
+        """Calculate current speed by using the detected number from seven segment display"""
+
         self.vel_now = float(msg.data)*0.1
 
     def timer_callback(self):
@@ -124,6 +131,11 @@ class Auto_control(Node):
         else:
             limit = self.speed_curve
 
+        if self.vel_now >=50:
+            station_thres = float(0.008*self.vel_now+0.083)
+        else:
+            station_thres = 0.5
+
         if self.vel_now > limit:
             if self.vel_now<limit+2 and self.station_state == Station_State.NAN:
                 self.train_state = Train_State.HB
@@ -132,32 +144,24 @@ class Auto_control(Node):
                 self.train_state = Train_State.FB
                 self.control_cmd = 4
         else:
-            if self.vel_now<limit and self.vel_now>limit-self.speed_thres and self.station_state == Station_State.NAN:
+            if self.vel_now<limit and self.vel_now>limit-self.speed_thres and self.station_dis >=station_thres: #self.station_state == Station_State.NAN:
                 self.train_state = Train_State.IDLE
                 self.control_cmd = 2
-            elif self.vel_now<limit-self.speed_thresa and self.station_state == Station_State.NAN:
-                if self.vel_now<=10.5 and limit < 15:
+            elif self.vel_now<limit-self.speed_thres and self.station_dis >=station_thres: # self.station_state == Station_State.NAN:
+                if self.vel_now<=10.5: #and limit < 15:
                     self.train_state = Train_State.HT
                     self.control_cmd = 1
                 else:
                     self.train_state = Train_State.FT
                     self.control_cmd = 0
             else:
-                self.train_state = Train_State.IDLE
-                self.control_cmd = 0
+                if self.station_dis<=0.01:
+                    self.train_state = Train_State.HB
+                    self.control_cmd = 3
+                else:
+                    self.train_state = Train_State.IDLE
+                    self.control_cmd = 2
 
-        # if self.vel_now <= self.speed_limit-2 and self.vel_now <= self.speed_curve-3 and self.vel_check <= self.speed_limit-3:
-        #     self.train_state = Train_State.ACC
-        #     self.get_logger().info(f'D {self.vel_now:.2f}')
-        # elif self.vel_now <= self.speed_limit and self.vel_now <= self.speed_curve:
-        #     self.train_state = Train_State.IDLE
-        #     self.get_logger().info(f'N {self.vel_now:.2f}')
-        # elif self.vel_now > self.speed_limit or self.vel_now > self.speed_curve:
-        #     self.train_state = Train_State.DEC
-        #     self.get_logger().info(f'B {self.vel_now:.2f}')
-        # elif self.speed_curve == 10.0:
-        #     self.train_state = Train_State.MAN
-        #     self.get_logger().info(f'HUMAN speed:{self.vel_now:.2f} station end:{self.station_dis}')
         if self.control_cmd != self.prev_cmd:
             self.cmd.data = int(self.control_cmd)
             self.command_pub.publish(self.cmd)
@@ -181,8 +185,8 @@ class Auto_control(Node):
                 self.speed_limit = self.next_limit
         if self.station_state == Station_State.APP:
             self.station_dis -= self.vel_now/36000
-            if self.station_dis >= 0.1:
-                self.speed_curve = self.station_dis*90
+            if self.station_dis >= 0.03:
+                self.speed_curve = self.station_dis*112.903+6.613
             else:
                 self.speed_curve = 10.0
 
@@ -218,7 +222,11 @@ class Auto_control(Node):
     def resume_callback(self,request, response):
         self.station_state = Station_State.NAN
         self.speed_curve = 80
-        self.station_dis = 1.0
+        self.station_dis = 1.05
+        return Empty.Response()
+    
+    def set_75_limit_callback(self,request, response):
+        self.next_limit = 75
         return Empty.Response()
 
 

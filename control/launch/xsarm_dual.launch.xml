@@ -53,4 +53,6 @@
     args="-d $(var rvizconfig)"
     if="$(eval '\'$(var use_dual_rviz)\' == \'true\'')"/>
 
+  <node pkg="control" exec="robot_control" name="robot_control"/>
+
 </launch>

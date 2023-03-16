@@ -29,11 +29,11 @@ class Robot_control(Node):
         self.gripper1_command = JointSingleCommand(name=gripper_name)
         self.gripper2_command = JointSingleCommand(name=gripper_name)
 
-        self.T1 = [0.0, 0.35, -0.77, 0.1]   #IT
-        self.T2 = [0.0,-0.60, 0.60, 0.0]    #FT
-        self.T3 = [0.0, -0.25, 0.15, 0.0]   #HT
+        self.T1 = [0.01, 0.35, -0.77, 0.1]   #IT
+        self.T2 = [0.03,-0.60, 0.60, 0.0]    #FT
+        self.T3 = [0.025, -0.25, 0.15, 0.0]   #HT
         self.B1 = [0.04,-0.85, 0.95, 0.0]   #IB1
-        self.B2 = [0.03,-0.09, 0.15, 0.0]   #FB
+        self.B2 = [0.03,0.0, 0.07, 0.0]   #FB
         self.B4 = [0.04,-0.95, 0.99, 0.0]   #IB2
         self.B3 = [0.04,-0.35, 0.4, 0.0]    #HB
         self.S = [0.0, -1.88, 1.5, 0.8]     #sleep
@@ -92,7 +92,7 @@ class Robot_control(Node):
             Int16,
             'command',
             self.cmd_callback,
-            10)
+            1)
         
         self.prev_cmd = 2
         self.current_cmd = 2
@@ -351,7 +351,7 @@ class Robot_control(Node):
     def grasp_r1(self):
         self.gripper_command.cmd = -self.gripper_value
         self.robot1_single_pub.publish(self.gripper_command)
-        time.sleep(1.0)
+        time.sleep(2.0)
 
     def grasp_r2(self):
         self.gripper_command.cmd = -self.gripper_value
