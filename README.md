@@ -3,6 +3,10 @@
 ## Video
 
 
+https://user-images.githubusercontent.com/80802375/226062145-78f7c51c-8b28-4bd6-8cc3-790ab461a7e0.mp4
+
+
+
 ## Overview
 This ROS2 humble package combines yolo object detection, openCV LCD detection, and two PincherX 100 robot arms to achieve automonus Caltrain MP36PHI train control in train simulator Train Sim World Peninsula Corridorroute DLC.
 
