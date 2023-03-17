@@ -9,6 +9,25 @@ import time
 from interbotix_xs_msgs.msg import JointGroupCommand,JointSingleCommand,JointTrajectoryCommand
 
 class Robot_control(Node):
+    """Robot control node."""
+
+    """
+
+    Services:
+    HT (std_srvs/srv/Empty) - full throttle control service
+    FT (std_srvs/srv/Empty) - half throttle control service
+    ID (std_srvs/srv/Empty) - idle robot control service
+    HB (std_srvs/srv/Empty) - half brake control service
+    FB (std_srvs/srv/Empty) - full brake control service
+
+    and a lot of services for robot test :(
+
+    Subscribers:
+    cmd_sub (std_msgs/msg/Int16) - command from control node
+
+    Others:
+    Train control logic
+    """
     def __init__(self):
         super().__init__('robot_control')
         self.robot1_ns = 'arm_2'
@@ -45,7 +64,6 @@ class Robot_control(Node):
         self.msg2.name = 'arm'
 
 
-        # self.timer = self.create_timer(1/10, self.timer_callback)
         self.robot1_joints_pub = self.create_publisher(
             JointGroupCommand, f'{self.robot1_ns}/commands/joint_group', 10
         )
@@ -84,9 +102,7 @@ class Robot_control(Node):
         self.robot2_release_srv = self.create_service(Empty, 'release2', self.release2_callback)
 
         self.robot_sleep_srv = self.create_service(Empty, 'sleep', self.sleep_callback)
-    # def timer_callback(self):
-    #     # if (self.vel_group.size >10):
-    #     #     self.vel_group.
+
 
         self.cmd_sub = self.create_subscription(
             Int16,
@@ -98,10 +114,11 @@ class Robot_control(Node):
         self.current_cmd = 2
         
     def cmd_callback(self, msg):
-        # self.current_cmd = int(msg.data)
+        """callback function which used to listen to command"""
         self.function_test(int(msg.data))
 
     def function_test(self,msg):
+        """generate robot action according to the input command"""
         self.current_cmd = int(msg)
         if self.current_cmd == 0:
             if self.prev_cmd ==2:
@@ -285,26 +302,32 @@ class Robot_control(Node):
         self.prev_cmd = self.current_cmd
 
     def FT_callback(self,request, response):
+        """generate robot action according to the input command"""
         self.function_test(0)
         return Empty.Response()
     
     def HT_callback(self,request, response):
+        """generate robot action according to the input command"""
         self.function_test(1)
         return Empty.Response()
 
     def ID_callback(self,request, response):
+        """generate robot action according to the input command"""
         self.function_test(2)
         return Empty.Response()
 
     def HB_callback(self,request, response):
+        """generate robot action according to the input command"""
         self.function_test(3)
         return Empty.Response()
 
     def FB_callback(self,request, response):
+        """generate robot action according to the input command"""
         self.function_test(4)
         return Empty.Response()
 
     def sleep_callback(self,request, response):
+        """generate robot action according to the input command"""
         self.current_cmd = 2
         self.prev_cmd = 2
         msg = JointGroupCommand()
@@ -316,6 +339,7 @@ class Robot_control(Node):
 
 
     def home1_callback(self,request, response):
+        """callback to move robot1 to home pose"""
         msg = JointGroupCommand()
         msg.name = 'arm'
         msg.cmd = [0.0,0.0,0.0,0.0]
@@ -324,6 +348,7 @@ class Robot_control(Node):
         return Empty.Response()
     
     def sleep1_callback(self,request, response):
+        """callback to move robot1 to sleep pose"""
         msg = JointGroupCommand()
         msg.name = 'arm'
         msg.cmd = [0.0, -1.88, 1.5, 0.8]
@@ -332,6 +357,7 @@ class Robot_control(Node):
         return Empty.Response()
     
     def home2_callback(self,request, response):
+        """callback to move robot2 to home pose"""
         msg = JointGroupCommand()
         msg.name = 'arm'
         msg.cmd = [0.0,0.0,0.0,0.0]
@@ -340,30 +366,35 @@ class Robot_control(Node):
         return Empty.Response()
     
     def sleep2_callback(self,request, response):
+        """callback to move robot2 to sleep pose"""
         msg = JointGroupCommand()
         msg.name = 'arm'
         msg.cmd = [0.0, -1.88, 1.5, 0.8]
         self.robot2_joints_pub.publish(msg)
         time.sleep(self.move_time)
         return Empty.Response()
-#full throttle
+
 
     def grasp_r1(self):
+        """robot1 grasp action"""
         self.gripper_command.cmd = -self.gripper_value
         self.robot1_single_pub.publish(self.gripper_command)
         time.sleep(2.0)
 
     def grasp_r2(self):
+        """robot2 grasp action"""
         self.gripper_command.cmd = -self.gripper_value
         self.robot2_single_pub.publish(self.gripper_command)
         time.sleep(1.0)
 
     def release_r1(self):
+        """robot1 release action"""
         self.gripper_command.cmd = self.gripper_value
         self.robot1_single_pub.publish(self.gripper_command)
         time.sleep(1.0)
 
     def release_r2(self):
+        """robot2 release action"""
         self.gripper_command.cmd = self.gripper_value
         self.robot2_single_pub.publish(self.gripper_command)
         time.sleep(1.0)
@@ -386,7 +417,7 @@ class Robot_control(Node):
     def release2_callback(self,request, response):
         self.release_r2()
         return Empty.Response()
-
+#full throttle
     def ft1_callback(self,request, response):
         msg = JointGroupCommand()
         msg.name = 'arm'

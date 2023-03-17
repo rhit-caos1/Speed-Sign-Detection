@@ -26,35 +26,6 @@ from rclpy.node import Node
 
 from std_msgs.msg import Int16MultiArray
 
-# def attempt_load(weights, map_location=None):
-#     # Loads an ensemble of models weights=[a,b,c] or a single model weights=[a] or weights=a
-#     model = Ensemble()
-#     for w in weights if isinstance(weights, list) else [weights]:
-#         #unable to detect file !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-#         file = Path(str('best.pt').strip().replace("'", '').lower())
-#         print(file)
-#         # attempt_download(w)
-#         torch.load('/home/scg1224/Individual_project/ros_ws/src/Speed-Sign-Detection/detection/detection/best.pt')
-#         ckpt = torch.load(w, map_location=map_location)  # load
-#         model.append(ckpt['ema' if ckpt.get('ema') else 'model'].float().fuse().eval())  # FP32 model
-    
-#     # Compatibility updates
-#     for m in model.modules():
-#         if type(m) in [nn.Hardswish, nn.LeakyReLU, nn.ReLU, nn.ReLU6, nn.SiLU]:
-#             m.inplace = True  # pytorch 1.7.0 compatibility
-#         elif type(m) is nn.Upsample:
-#             m.recompute_scale_factor = None  # torch 1.11.0 compatibility
-#         elif type(m) is Conv:
-#             m._non_persistent_buffers_set = set()  # pytorch 1.6.0 compatibility
-    
-#     if len(model) == 1:
-#         return model[-1]  # return model
-#     else:
-#         print('Ensemble created with %s\n' % weights)
-#         for k in ['names', 'stride']:
-#             setattr(model, k, getattr(model[-1], k))
-#         return model  # return ensemble
-
 class detect_sign:
     def __init__(self,source, weights, device, img_size, iou_thres, conf_thres):
         self.webcam = source.isnumeric()
@@ -173,6 +144,13 @@ class detect_sign:
 
 class Detect_ros(Node):
     def __init__(self):
+        """Auto_control node."""
+
+        """
+        Topics.
+        Publishers:
+        signs (std_msgs/msg/Int16MultiArray) - publish detected sign index
+        """
         super().__init__('detect_ros')
         self.publisher_ = self.create_publisher(Int16MultiArray, 'signs', 10)
 
@@ -180,18 +158,17 @@ class Detect_ros(Node):
 def main(args=None):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(device)
-    # file = Path('.')
-    # ckpt = torch.load("best.pt", map_location=None)
+
     rclpy.init(args=None)
 
-    # mynode = rclpy.Node()
-    # mypub = mynode.create_publisher(Int16MultiArray, 'signs', 10)
+
     msg = Int16MultiArray()
     with torch.no_grad():
+        #change 0 to other number if video feed is not at port 0.
         detect_s = detect_sign("0","best.pt",device,img_size=1920,iou_thres=0.45,conf_thres=0.85)
 
         detect_pub = Detect_ros()
-        # rclpy.spin(detect_pub)
+
         print('begin')
         while True:
             msg.data = detect_s.detection()
@@ -203,24 +180,4 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
-    # device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    # print(device)
-    # #check_requirements(exclude=('pycocotools', 'thop'))
-    # rclpy.init(args=None)
-
-
-    # with torch.no_grad():
-    #     detect_s = detect_sign("0","best.pt",device,img_size=1920,iou_thres=0.45,conf_thres=0.5)
-
-    #     detect_pub = detect_ros(detect_s)
-    #     while True:
-    #         rclpy.spin_once(detect_pub)
-
-    #     detect_pub.destroy_node()
-    #     rclpy.shutdown()
-        # while True:
-        #     detects = detect_s.detection()
-        # detect("0","best.pt",device,img_size=1920,iou_thres=0.45,conf_thres=0.5)
-        # print('goof1')
-    # print('goof2')
 

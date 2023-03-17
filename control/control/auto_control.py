@@ -45,6 +45,24 @@ class Crossing_State(Enum):
     NAN = auto(),
 
 class Auto_control(Node):
+    """Auto_control node."""
+
+    """
+    Topics.
+    Publishers:
+    command_pub (std_msgs/msg/Int16) - command publisher
+
+
+    Service:
+    resume (std_srvs/srv/Empty) - The resume function to resume function
+
+    Subscribers:
+    speed (std_msgs/msg/Int16) - speed info
+    signs (std_msgs/msg/Int16MultiArray) - detected marker index
+
+    Others:
+    Train control logic
+    """
     def __init__(self):
         super().__init__('auto_control')
         self.timer = self.create_timer(1/10, self.timer_callback)
@@ -113,15 +131,13 @@ class Auto_control(Node):
         self.vel_now = float(msg.data)*0.1
 
     def timer_callback(self):
-        # if (self.vel_group.size >10):
-        #     self.vel_group.
+
         self.vel_group_last = self.vel_group
         self.vel_group = np.roll(self.vel_group,-1)
         self.vel_group[-1] = self.vel_now
         self.acc = (np.sum(self.vel_group-self.vel_group_last))*360*5 # miles pre sec^2
         self.vel_check = self.vel_now+self.acc/3600*6
         self.dis = self.dis + self.vel_now/36000
-        # self.get_logger().info(f'dis {self.dis:.2f} speed {self.vel_now:.2f} acc {self.acc:.2f} nextspeed6s {self.vel_check:.2f}')
 
         self.state_update()
         self.threshold_update()
@@ -171,12 +187,14 @@ class Auto_control(Node):
         self.control_update()
 
     def threshold_update(self):
+        """update speed threshold for train controller"""
         if self.speed_limit<=15.0:
             self.speed_thres = 2.0
         else:
             self.speed_thres = 2-(self.vel_now-15.0)/100.0
 
     def state_update(self):
+        """update speed threshold for train controller"""
         if self.limit_state == Limit_State.ACC:
             self.temp_limit_dis += self.vel_now/36000
             self.get_logger().info(f'limit passed {self.temp_limit_dis:.6f}, passed limit: {self.next_limit:.2f}')
@@ -191,6 +209,7 @@ class Auto_control(Node):
                 self.speed_curve = 10.0
 
     def control_update(self):
+        """State machine"""
         if self.train_state == Train_State.FT:
             self.command = 'FT'
         elif self.train_state == Train_State.HT:
@@ -220,17 +239,20 @@ class Auto_control(Node):
 
 
     def resume_callback(self,request, response):
+        """resume service callback for train controller to start journey again"""
         self.station_state = Station_State.NAN
         self.speed_curve = 80
         self.station_dis = 1.05
         return Empty.Response()
     
     def set_75_limit_callback(self,request, response):
+        """service callback to set a 75 mph speed limit"""
         self.next_limit = 75
         return Empty.Response()
 
 
     def sign_callback(self, msg):
+        """YoloV7 detection callback"""
         self.signs = msg.data
         for i in range(len(self.signs)):
             if self.signs[i] == 0 or self.signs[i] == 1:

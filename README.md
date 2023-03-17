@@ -6,9 +6,8 @@
 https://user-images.githubusercontent.com/80802375/226062145-78f7c51c-8b28-4bd6-8cc3-790ab461a7e0.mp4
 
 
-
 ## Overview
-This ROS2 humble package combines yolo object detection, openCV LCD detection, and two PincherX 100 robot arms to achieve automonus Caltrain MP36PHI train control in train simulator Train Sim World Peninsula Corridorroute DLC.
+This ROS2 humble package combines yolo object detection, openCV LCD detection, and two PincherX 100 robot arms to achieve automonus Caltrain MP36PHI train control in train simulator Train Sim World Peninsula Corridorroute DLC. Details can be viewed from this post: https://rhit-caos1.github.io/Train_control/
 
 ## Prerequisites
 This package depends on several pacakges. In order to get all the functions, please install this package: https://github.com/m-elwin/numsr_patches.
@@ -20,9 +19,9 @@ Also, yolo v7 is required for this. Due to the ROS2 structure, yolo v7 should be
 After build the package, copy the weight `best.pt` in `result/v8` folder to the workspace. Then copy the `models` and `utils` folder in `yolo_package/src/yolo_pkg/` to `install/lib/detection/lib/detection` in the workspace. These two steps are important for pytorch to run correctly in ros2 node.
 
 ## Hardwares:
-1. one web cam for speed reading (Realsense rgb camera is used as a webcam in this project)
-2. one graphic capture card for video transmission
-3. two PincherX 100 robot arms
+1. One web cam for speed reading (Realsense rgb camera is used as a webcam in this project)
+2. One graphic capture card for video transmission
+3. Two PincherX 100 robot arms
 4. Laser cutted PincherX fixture
 
 ## Start The Code

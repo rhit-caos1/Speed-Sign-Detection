@@ -45,7 +45,7 @@ class camera_read():
         profile = self.pipeline.start(config)
 
 
-        # img = cv2.imread("input.jpg")
+
 
         self.segments = dict({
             tuple([1, 0, 1, 1, 1, 1, 1]):0, # 0
@@ -68,8 +68,6 @@ class camera_read():
         self.minV=232
         self.maxV=214
 
-        # upper_conner = (215,215)
-        # lower_conner = (405,295)
         self.up1 = upper_corner
         self.up2 = (lower_corner[0],upper_corner[1])
         self.lp1 = lower_corner
@@ -82,8 +80,6 @@ class camera_read():
         self.sec2 = int(self.sec1+length*0.1)
         self.sec3 = int(self.lp1[0]-self.secw)
 
-        # sec_lmid = int(self.secw/2)
-        # sec_wmid = int(self.width/2)
 
         self.kernel = np.ones((11,11),np.uint8)
 
@@ -166,7 +162,7 @@ class camera_read():
 
     def decimal(self,img,secw,width):
         seg = img[int(width-13):int(width-3), int(secw-10):int(secw)]
-        # cv2.imshow('seg1_7',seg)
+
         if(seg.mean() >= 100):
             i = 1
         else:
@@ -184,12 +180,6 @@ class camera_read():
 
         img_hsv=cv2.cvtColor(color_image, cv2.COLOR_BGR2HSV)
 
-        # minH=10
-        # maxH=170
-        # minS=105
-        # maxS=41
-        # minV=98
-        # maxV=236
 
         lower_red = np.array([0,self.minS,self.minV])
         upper_red = np.array([self.minH,255,255])
@@ -244,21 +234,21 @@ class camera_read():
                 print(result)
                 self.Vresult = result
 
-        # cv2.imshow('seg1',seg1)
-        # cv2.imshow('seg2',seg2)
-        # cv2.imshow('seg3',seg3)
         cv2.imshow('img', color_image)
-        # cv2.imshow('mask', mask)
+
         key=cv2.waitKey(1)
         
-
-        # if key & 0xFF == ord('q') or key == 27:
-        #     print(seg1.shape)
-        #     cv2.destroyAllWindows()
         
         return self.Vresult
 
 class Speed(Node):
+    """speed node."""
+
+    """
+    Topic:
+    Publishers:
+    speed (std_msgs/msg/Int16) - publish speed reading
+    """
     def __init__(self,detection):
         super().__init__('speed')
         self.publisher_ = self.create_publisher(Int16, 'speed', 10)
@@ -279,11 +269,6 @@ def main():
     msg = Int16()
     rclpy.init(args=None)    
     speed_pub = Speed(detect)
-
-    # while True:
-    #     msg.data = detect.detection()
-    #     speed_pub.publisher_.publish(msg)
-    #     # speed_pub.get_logger().info(f'detect speed {msg.data}')
     try:
         while rclpy.ok():
             rclpy.spin(speed_pub)
